@@ -34,6 +34,9 @@ TEMPERATURE = 0
 TOP_K = 10
 MAX_TOKENS = 4096
 
+# Must match the "key" enum in tool_config.py's get_user tool spec.
+ALLOWED_USER_LOOKUP_KEYS = {"email", "phone", "username"}
+
 
 def extract_reply(text):
     """Extract the reply text from the given text wrapped in <reply> tags."""
@@ -91,12 +94,15 @@ def process_message(messages):
 
 def process_tool_call(tool_name, tool_input):
     """Process the tool call based on the given tool name and input."""
+    connection = None
     try:
         connection = get_db_connection()
         with connection.cursor() as cursor:
             if tool_name == "get_user":
                 key = tool_input["key"]
                 value = tool_input["value"]
+                if key not in ALLOWED_USER_LOOKUP_KEYS:
+                    raise ValueError(f"Unsupported lookup key: {key}")
                 query = f"SELECT * FROM customers WHERE {key} = %s"
                 logging.info("Executing query: %s with value: %s", query, value)
                 cursor.execute(query, (value,))
